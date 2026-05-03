@@ -26,7 +26,6 @@ def main():
 
     parser.add_argument("--dataset_id", required=True)
     parser.add_argument("--model_version", type=str, default="1")
-    parser.add_argument("--publish_model", action="store_true")
 
     parser.add_argument("--iterations", type=int, default=100)
     parser.add_argument("--depth", type=int, default=6)
@@ -38,13 +37,13 @@ def main():
 
     task = Task.init(
         project_name="students-demo",
-        task_name="catboost-text-classification"
+        task_name="catboost-text-classification",
+        output_uri="http://5.42.111.147:8081"
     )
 
     params = {
         "dataset_id": args.dataset_id,
         "model_version": args.model_version,
-        "publish_model": args.publish_model,
         "iterations": args.iterations,
         "depth": args.depth,
         "learning_rate": args.learning_rate,
@@ -174,71 +173,37 @@ def main():
     model_path = Path("catboost_sms_spam_model.cbm")
     model.save_model(model_path)
 
-    model_tags = [
-        "catboost",
-        "sms-spam",
-        "text-classification",
-        f"v{args.model_version}",
-    ]
-
-    if args.publish_model:
-        model_tags.append("best")
-        model_tags.append("published")
-
     output_model = OutputModel(
         task=task,
         name=f"sms-spam-catboost-v{args.model_version}",
         framework="CatBoost",
-        tags=model_tags,
-        comment=(
-            f"SMS spam CatBoost model. "
-            f"version={args.model_version}, "
-            f"accuracy={accuracy:.4f}, "
-            f"f1={f1:.4f}, "
-            f"dataset_id={args.dataset_id}"
-        ),
+        tags=[
+            "catboost",
+            "sms-spam",
+            "text-classification",
+            f"v{args.model_version}",
+            "best",
+            "published",
+        ],
+        comment=f"accuracy={accuracy:.4f}, f1={f1:.4f}, dataset_id={args.dataset_id}",
     )
 
-    output_model.update_labels({
-        "ham": 0,
-        "spam": 1,
-    })
-
-    output_model.set_metadata("version", args.model_version, "str")
-    output_model.set_metadata("dataset_id", args.dataset_id, "str")
-    output_model.set_metadata("accuracy", str(accuracy), "float")
-    output_model.set_metadata("f1", str(f1), "float")
-    output_model.set_metadata("iterations", str(args.iterations), "int")
-    output_model.set_metadata("depth", str(args.depth), "int")
-    output_model.set_metadata("learning_rate", str(args.learning_rate), "float")
-
-    output_model.report_scalar(
-        title="metrics",
-        series="accuracy",
-        value=accuracy,
-        iteration=args.iterations,
-    )
-
-    output_model.report_scalar(
-        title="metrics",
-        series="f1",
-        value=f1,
-        iteration=args.iterations,
-    )
-
-    output_model.update_weights(
+    model_url = output_model.update_weights(
         weights_filename=str(model_path),
+        upload_uri="http://5.42.111.147:8081",
         target_filename=f"sms_spam_catboost_v{args.model_version}.cbm",
         async_enable=False,
     )
 
-    if args.publish_model:
-        output_model.publish()
-        print("Published model to Registry")
+    output_model.set_metadata("version", args.model_version, "str")
+    output_model.set_metadata("accuracy", str(accuracy), "float")
+    output_model.set_metadata("f1", str(f1), "float")
+    output_model.set_metadata("dataset_id", args.dataset_id, "str")
+
+    output_model.publish()
 
     print("MODEL_ID:", output_model.id)
-    print("MODEL_VERSION:", args.model_version)
-    print("MODEL_TAGS:", model_tags)
+    print("MODEL_URL:", model_url)
 
     task.upload_artifact(
         name="catboost_model",
