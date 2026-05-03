@@ -8,6 +8,7 @@ from catboost import CatBoostClassifier, Pool
 from clearml import Dataset, Task
 from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
 from sklearn.model_selection import train_test_split
+from clearml import Dataset, Task, OutputModel
 
 
 def get_git_commit():
@@ -169,6 +170,16 @@ def main():
 
     model_path = Path("catboost_sms_spam_model.cbm")
     model.save_model(model_path)
+
+    output_model = OutputModel(
+        task=task,
+        name="catboost_sms_spam_model",
+        framework="CatBoost"
+    )
+
+    output_model.update_weights(
+        weights_filename=str(model_path)
+    )
 
     task.upload_artifact(
         name="catboost_model",
