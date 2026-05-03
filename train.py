@@ -79,9 +79,7 @@ def main():
 
     df["label"] = df["label"].map({
         "ham": 0,
-        "spam": 1,
-        0: 0,
-        1: 1
+        "spam": 1
     })
 
     df = df.dropna()
